@@ -1,0 +1,24 @@
+{
+    "settings": {
+        "react": {
+            "version": "detect"
+        }
+    },
+    "extends": [
+        "standard-with-typescript",
+        "plugin:react/recommended"
+    ],
+    "env": {
+
+    },
+    "plugins": [
+        "react"
+    ],
+    "parserOptions": {
+        "project": "./tsconfig-eslint.json"
+    },
+    "rules": {
+        "react/jsx-uses-react": "error",
+        "react/jsx-uses-vars": "error"
+    }
+}
