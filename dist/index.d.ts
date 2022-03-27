@@ -4,4 +4,7 @@ export interface CliOptions {
     templateName: string;
     templatePath: string;
     tartgetPath: string;
+    version: string;
+    author: string;
+    description: string;
 }

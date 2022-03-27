@@ -1,10 +1,26 @@
 #!/usr/bin/env node
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
     return result;
 };
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -15,7 +31,6 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const inquirer = __importStar(require("inquirer"));
 const chalk_1 = __importDefault(require("chalk"));
-const template = __importStar(require("./utils/template"));
 const shell = __importStar(require("shelljs"));
 const CHOICES = fs.readdirSync(path.join(__dirname, 'templates'));
 const QUESTIONS = [
@@ -29,29 +44,46 @@ const QUESTIONS = [
         name: 'name',
         type: 'input',
         message: 'Please input a new project name:'
+    },
+    {
+        name: 'description',
+        type: 'input',
+        message: 'Please input the project description:'
+    },
+    {
+        name: 'version',
+        type: 'input',
+        message: 'Please input the starting version:',
+        default: "1.0.0",
+    },
+    {
+        name: 'author',
+        type: 'input',
+        message: 'Please input the author\'\s name:'
     }
 ];
 const CURR_DIR = process.cwd();
 inquirer.prompt(QUESTIONS).then(answers => {
     const projectChoice = answers['template'];
     const projectName = answers['name'];
-    //@ts-ignore
+    const version = answers['version'];
+    const author = answers['author'];
+    const description = answers['description'];
     const templatePath = path.join(__dirname, 'templates', projectChoice);
-    //@ts-ignore
     const tartgetPath = path.join(CURR_DIR, projectName);
     const options = {
-        //@ts-ignore
         projectName,
-        //@ts-ignore
         templateName: projectChoice,
         templatePath,
-        tartgetPath
+        tartgetPath,
+        version,
+        author,
+        description
     };
     if (!createProject(tartgetPath)) {
         return;
     }
-    //@ts-ignore
-    createDirectoryContents(templatePath, projectName);
+    createDirectoryContents(options);
     postProcess(options);
 });
 function createProject(projectPath) {
@@ -63,30 +95,32 @@ function createProject(projectPath) {
     return true;
 }
 const SKIP_FILES = ['node_modules', '.template.json'];
-function createDirectoryContents(templatePath, projectName) {
-    // read all files/folders (1 level) from template folder
-    const filesToCreate = fs.readdirSync(templatePath);
-    // loop each file/folder
+function createDirectoryContents(options) {
+    const filesToCreate = fs.readdirSync(options.templatePath);
     filesToCreate.forEach(file => {
-        const origFilePath = path.join(templatePath, file);
-        // get stats about the current file
+        const origFilePath = path.join(options.templatePath, file);
         const stats = fs.statSync(origFilePath);
-        // skip files that should not be copied
         if (SKIP_FILES.indexOf(file) > -1)
             return;
         if (stats.isFile()) {
-            // read file content and transform it using template engine
             let contents = fs.readFileSync(origFilePath, 'utf8');
-            contents = template.render(contents, { projectName });
-            // write file to destination folder
-            const writePath = path.join(CURR_DIR, projectName, file);
+            let fileName = path.parse(origFilePath).base;
+            if (fileName.includes("package.json")) {
+                let jsonObject = JSON.parse(contents);
+                jsonObject["name"] = options.projectName;
+                jsonObject["version"] = options.version;
+                jsonObject["author"] = options.author;
+                jsonObject["description"] = options.description;
+                contents = JSON.stringify(jsonObject, undefined, 2);
+            }
+            const writePath = path.join(CURR_DIR, options.projectName, file);
             fs.writeFileSync(writePath, contents, 'utf8');
         }
         else if (stats.isDirectory()) {
-            // create folder in destination folder
-            fs.mkdirSync(path.join(CURR_DIR, projectName, file));
-            // copy files/folder inside current folder recursively
-            createDirectoryContents(path.join(templatePath, file), path.join(projectName, file));
+            fs.mkdirSync(path.join(CURR_DIR, options.projectName, file));
+            options.templatePath = path.join(options.templatePath, file);
+            options.projectName = path.join(options.projectName, file);
+            createDirectoryContents(options);
         }
     });
 }
